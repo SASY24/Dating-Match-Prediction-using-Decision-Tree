@@ -6,29 +6,22 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
 
-# ตั้งค่าหน้าเว็บ
-st.set_page_config(page_title="แอพทำนายความเข้ากันของคู่แมทช์", layout="wide")
-st.title("🚀 แอพทำนายความเข้ากันของคู่แมทช์")
-st.write("ใช้ Machine Learning ในการทำนายความเข้ากันของคู่แมทช์จากข้อมูลโปรไฟล์")
+# Initialize random seed and sample data
+np.random.seed(42)
+n_samples = 1000
 
-# สร้างข้อมูลตัวอย่าง
-@st.cache_data
-def generate_sample_data():
-    np.random.seed(42)
-    n_samples = 1000
-    
-    data = {
-        'อายุ': np.random.randint(18, 50, n_samples),
-        'ความสูง': np.random.randint(150, 190, n_samples),
-        'การศึกษา': np.random.choice(['มัธยม', 'ปริญญาตรี', 'ปริญญาโท', 'ปริญญาเอก'], n_samples),
-        'อาชีพ': np.random.choice(['พนักงานบริษัท', 'ธุรกิจส่วนตัว', 'ข้าราชการ', 'แพทย์', 'วิศวกร'], n_samples),
-        'งานอดิเรก': np.random.choice(['กีฬา', 'ดนตรี', 'ท่องเที่ยว', 'อ่านหนังสือ', 'ทำอาหาร'], n_samples),
-        'รายได้': np.random.randint(15000, 150000, n_samples),
-        'สถานะ': np.random.choice(['โสด', 'หย่า', 'ม่าย'], n_samples)
-    }
-    return pd.DataFrame(data)
+# Create feature data
+data = {
+    'อายุ': np.random.randint(18, 50, n_samples),
+    'ความสูง': np.random.randint(150, 190, n_samples),
+    'การศึกษา': np.random.choice(['มัธยม', 'ปริญญาตรี', 'ปริญญาโท', 'ปริญญาเอก'], n_samples),
+    'อาชีพ': np.random.choice(['พนักงานบริษัท', 'ธุรกิจส่วนตัว', 'ข้าราชการ', 'แพทย์', 'วิศวกร'], n_samples),
+    'งานอดิเรก': np.random.choice(['กีฬา', 'ดนตรี', 'ท่องเที่ยว', 'อ่านหนังสือ', 'ทำอาหาร'], n_samples),
+    'รายได้': np.random.randint(15000, 150000, n_samples),
+    'สถานะ': np.random.choice(['โสด', 'หย่า', 'ม่าย'], n_samples)
+}
 
-# ฟังก์ชันสร้างผลลัพธ์การแมทช์
+# Generate match results based on certain criteria
 def create_match_result(row):
     score = 0
     if row['การศึกษา'] in ['ปริญญาโท', 'ปริญญาเอก']:
@@ -41,46 +34,39 @@ def create_match_result(row):
         score += 0.2
     if row['งานอดิเรก'] in ['ท่องเที่ยว', 'กีฬา']:
         score += 0.1
+    
     return 1 if score > 0.5 else 0
 
-# เตรียมข้อมูลและเทรนโมเดล
-@st.cache_resource
-def train_model():
-    df = generate_sample_data()
-    df['match'] = df.apply(create_match_result, axis=1)
-    
-    le = LabelEncoder()
-    categorical_columns = ['การศึกษา', 'อาชีพ', 'งานอดิเรก', 'สถานะ']
-    df_encoded = df.copy()
-    
-    for col in categorical_columns:
-        df_encoded[col] = le.fit_transform(df_encoded[col])
-    
-    X = df_encoded.drop('match', axis=1)
-    y = df_encoded['match']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    model = DecisionTreeClassifier(random_state=42, max_depth=5)
-    model.fit(X_train, y_train)
-    
-    return model, le, categorical_columns
+# Prepare the DataFrame
+df = pd.DataFrame(data)
+df['match'] = df.apply(create_match_result, axis=1)
 
-# โหลดโมเดลและข้อมูลที่จำเป็น
-model, le, categorical_columns = train_model()
+# Encode categorical variables
+le = LabelEncoder()
+categorical_columns = ['การศึกษา', 'อาชีพ', 'งานอดิเรก', 'สถานะ']
+for col in categorical_columns:
+    df[col] = le.fit_transform(df[col])
 
-# สร้าง sidebar สำหรับใส่ข้อมูล
-st.sidebar.header("📝 กรอกข้อมูลโปรไฟล์")
+# Split data into training and testing sets
+X = df.drop('match', axis=1)
+y = df['match']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# รับข้อมูลจากผู้ใช้
-age = st.sidebar.slider("อายุ", 18, 50, 25)
-height = st.sidebar.slider("ความสูง (ซม.)", 150, 190, 170)
-education = st.sidebar.selectbox("การศึกษา", ['มัธยม', 'ปริญญาตรี', 'ปริญญาโท', 'ปริญญาเอก'])
-occupation = st.sidebar.selectbox("อาชีพ", ['พนักงานบริษัท', 'ธุรกิจส่วนตัว', 'ข้าราชการ', 'แพทย์', 'วิศวกร'])
-hobby = st.sidebar.selectbox("งานอดิเรก", ['กีฬา', 'ดนตรี', 'ท่องเที่ยว', 'อ่านหนังสือ', 'ทำอาหาร'])
-income = st.sidebar.slider("รายได้ (บาท/เดือน)", 15000, 150000, 30000, step=1000)
-status = st.sidebar.selectbox("สถานะ", ['โสด', 'หย่า', 'ม่าย'])
+# Train the model
+dt_model = DecisionTreeClassifier(random_state=42, max_depth=5)
+dt_model.fit(X_train, y_train)
 
-# สร้างฟังก์ชันทำนาย
+# Test model accuracy
+y_pred = dt_model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+report = classification_report(y_test, y_pred)
+
+# Display model accuracy
+st.write(f"### ความแม่นยำของโมเดล: {accuracy * 100:.2f}%")
+st.write("### รายงานการจำแนกประเภท:")
+st.text(report)
+
+# Function to predict match for new input
 def predict_match(model, age, height, education, occupation, hobby, income, status):
     input_data = pd.DataFrame({
         'อายุ': [age],
@@ -92,62 +78,27 @@ def predict_match(model, age, height, education, occupation, hobby, income, stat
         'สถานะ': [status]
     })
     
-    input_encoded = input_data.copy()
     for col in categorical_columns:
-        input_encoded[col] = le.fit_transform(input_encoded[col])
+        input_data[col] = le.transform(input_data[col])
     
-    prediction = model.predict(input_encoded)
-    probability = model.predict_proba(input_encoded)
+    prediction = model.predict(input_data)
+    probability = model.predict_proba(input_data)
     
     return prediction[0], probability[0]
 
-# ปุ่มทำนาย
-if st.sidebar.button("ทำนายความเข้ากัน"):
-    result, prob = predict_match(
-        model,
-        age,
-        height,
-        education,
-        occupation,
-        hobby,
-        income,
-        status
-    )
-    
-    # แสดงผลลัพธ์ในรูปแบบที่สวยงาม
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📊 ผลการทำนาย")
-        if result == 1:
-            st.success("✨ เข้ากันได้!")
-            st.balloons()
-        else:
-            st.error("❌ ไม่เข้ากัน")
-            
-    with col2:
-        st.subheader("🎯 ความน่าจะเป็น")
-        st.progress(max(prob))
-        st.write(f"ความน่าจะเป็น: {max(prob) * 100:.2f}%")
-    
-    # แสดงข้อมูลโปรไฟล์
-    st.subheader("👤 ข้อมูลโปรไฟล์ที่ใช้ในการทำนาย")
-    profile_data = {
-        "หัวข้อ": ["อายุ", "ความสูง", "การศึกษา", "อาชีพ", "งานอดิเรก", "รายได้", "สถานะ"],
-        "ค่า": [age, f"{height} ซม.", education, occupation, hobby, f"{income:,} บาท", status]
-    }
-    st.table(pd.DataFrame(profile_data))
+# Interactive inputs for new prediction
+st.write("## ทำนายคู่แมทช์ใหม่")
+age = st.slider('อายุ', 18, 50, 28)
+height = st.slider('ความสูง', 150, 190, 175)
+education = st.selectbox('การศึกษา', ['มัธยม', 'ปริญญาตรี', 'ปริญญาโท', 'ปริญญาเอก'])
+occupation = st.selectbox('อาชีพ', ['พนักงานบริษัท', 'ธุรกิจส่วนตัว', 'ข้าราชการ', 'แพทย์', 'วิศวกร'])
+hobby = st.selectbox('งานอดิเรก', ['กีฬา', 'ดนตรี', 'ท่องเที่ยว', 'อ่านหนังสือ', 'ทำอาหาร'])
+income = st.number_input('รายได้', min_value=15000, max_value=150000, value=80000, step=5000)
+status = st.selectbox('สถานะ', ['โสด', 'หย่า', 'ม่าย'])
 
-# แสดงข้อมูลเพิ่มเติม
-with st.expander("ℹ️ เกี่ยวกับแอพนี้"):
-    st.write("""
-    แอพนี้ใช้ Machine Learning (Decision Tree) ในการทำนายความเข้ากันของคู่แมทช์ 
-    โดยพิจารณาจากปัจจัยต่างๆ เช่น อายุ การศึกษา อาชีพ และรายได้
-    
-    **วิธีใช้งาน:**
-    1. กรอกข้อมูลโปรไฟล์ในแถบด้านซ้าย
-    2. กดปุ่ม "ทำนายความเข้ากัน"
-    3. ระบบจะแสดงผลการทำนายพร้อมความน่าจะเป็น
-    
-    **หมายเหตุ:** ผลการทำนายนี้เป็นเพียงการคาดการณ์เท่านั้น
-    """)
+# Prediction
+if st.button("ทำนาย"):
+    result, prob = predict_match(dt_model, age, height, education, occupation, hobby, income, status)
+    st.write("### ผลการทำนาย:")
+    st.write(f"{'เข้ากันได้' if result == 1 else 'ไม่เข้ากัน'}")
+    st.write(f"### ความน่าจะเป็น: {max(prob) * 100:.2f}%")
